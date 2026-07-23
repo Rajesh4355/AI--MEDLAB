@@ -42,7 +42,7 @@ The project is structured into two main directories:
 ### Prerequisites
 
 - Node.js and npm installed on your machine.
-- MongoDB installed and running.
+
 
 ### Steps
 
