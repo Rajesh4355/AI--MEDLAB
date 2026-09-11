@@ -18,7 +18,8 @@ export const authenticate = async (req, res, next) => {
   try {
     // Extract token string and decode it
     const token = authToken.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+    const secret = process.env.JWT_SECRET_KEY || "aimedlab-default-jwt-secret-key-2024";
+    const decoded = jwt.verify(token, secret);
 
     // Attach decoded user information to the request object
     req.userId = decoded.id;

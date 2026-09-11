@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import useFetchData from "../../hooks/useFetchData";
 import { BASE_URL } from "../../config";
 import Loader from "../../components/Loader/Loading";
+import Error from "../../components/Error/Error";
 import axios from "axios";
 import { toast } from "react-toastify";
 
@@ -17,15 +18,29 @@ function DoctorsDropDown({ testName, testResult = null }) {
   };
 
   const bookAppointment = async () => {
-    console.log({ testResult });
+    if (!selectedDoctor) {
+      toast.warning("Please select a doctor to book an appointment");
+      return;
+    }
+
+    const resolvedTestName =
+      typeof testName === "object" && testName !== null
+        ? testName.testName || testName.name || "Health Assessment"
+        : testName || "Health Assessment";
+
+    const resolvedTestResult =
+      typeof testResult === "object" && testResult !== null
+        ? testResult.testResult || testResult.result || "Assessment Completed"
+        : testResult || "Assessment Completed";
+
     const payload = {
       doctorId: selectedDoctor,
-      testName: testName.testName,
-      testResult: testResult.testResult,
+      testName: resolvedTestName,
+      testResult: resolvedTestResult,
       payment: "Pending",
       price: "100",
-      patientGender: loginUser.gender,
-      patientName: loginUser.name,
+      patientGender: loginUser?.gender || "Not specified",
+      patientName: loginUser?.name || "Patient",
       bookedOn: `${new Date()}`,
     };
 
@@ -39,9 +54,9 @@ function DoctorsDropDown({ testName, testResult = null }) {
           },
         }
       );
-      toast.success("Appointment booking done");
+      toast.success("Appointment booking confirmed!");
     } catch (error) {
-      toast.error("Failed to book appointment");
+      toast.error(error.response?.data?.message || "Failed to book appointment. Please make sure you are logged in.");
       console.error(error);
     }
   };

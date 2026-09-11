@@ -5,38 +5,32 @@ const ResultComponent = ({ prediction }) => {
   const navigate = useNavigate();
 
   const handleNavigateHome = () => {
-    navigate.push("/"); // Navigate to the home page
+    navigate("/"); // Navigate to the home page
   };
 
+  const isPositive = prediction === 1 || prediction === "1" || (typeof prediction === "string" && prediction.includes("[1]"));
+
   return (
-    <div className="row" style={{ marginBottom: "477px" }}>
-      <div className="col-md-3"></div>
-      <div className="col-md-6">
-        {prediction === 1 ? (
-          <div className="card card-body alert alert-danger">
-            <center>
-              This X-Ray is predicted to have Pneumonia, Please Consult Doctor.
-            </center>
-          </div>
-        ) : (
-          <div className="card card-body alert alert-success">
-            <center>This X-Ray does not have Pneumonia.</center>
-          </div>
-        )}
-        <div className="row">
-          <div className="col-md-4"></div>
-          <div className="col-md-4">
-            <button
-              onClick={handleNavigateHome}
-              className="btn btn-block btn-primary"
-            >
-              Back to Home
-            </button>
-          </div>
-          <div className="col-md-4"></div>
+    <div className="max-w-2xl mx-auto my-12 px-4">
+      {isPositive ? (
+        <div className="bg-red-50 border border-red-300 text-red-800 rounded-xl p-6 text-center shadow-sm">
+          <p className="text-xl font-bold mb-1">Pneumonia Indicators Detected</p>
+          <p className="text-base">This scan indicates patterns consistent with pneumonia. Please consult a specialist.</p>
         </div>
+      ) : (
+        <div className="bg-green-50 border border-green-300 text-green-800 rounded-xl p-6 text-center shadow-sm">
+          <p className="text-xl font-bold mb-1">No Pneumonia Detected</p>
+          <p className="text-base">This scan indicates clear lung fields with no acute consolidation.</p>
+        </div>
+      )}
+      <div className="mt-6 flex justify-center">
+        <button
+          onClick={handleNavigateHome}
+          className="btn"
+        >
+          Back to Home
+        </button>
       </div>
-      <div className="col-md-3"></div>
     </div>
   );
 };

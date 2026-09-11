@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { BASE_URL } from "../../../config";
-import DcotorsDropDown from "../../DoctorDropDown/DoctorDropDown";
+import DoctorsDropDown from "../../DoctorDropDown/DoctorDropDown";
 
 const DiabetesTest = () => {
   const [inputData, setInputData] = useState({
@@ -15,7 +15,9 @@ const DiabetesTest = () => {
     "Age (years) eg. 34": "",
   });
   const [prediction, setPrediction] = useState(null);
+  const [resultDetails, setResultDetails] = useState(null);
   const [formError, setFormError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -25,76 +27,116 @@ const DiabetesTest = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Check if any field is empty
     const isFormFilled = Object.values(inputData).every(
-      (value) => value.trim() !== ""
+      (value) => String(value).trim() !== ""
     );
     if (!isFormFilled) {
-      setFormError("Please fill out all fields.");
+      setFormError("Please fill out all diabetes screening fields.");
       return;
     }
+
+    setLoading(true);
+    setFormError("");
+
     try {
       const response = await axios.post(`${BASE_URL}/diabetes`, {
         data: inputData,
       });
       setPrediction(response.data.prediction);
+      setResultDetails(response.data);
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error predicting diabetes:", error);
+      setFormError("Failed to calculate diabetes risk. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
+  const isPositive = prediction?.includes("[1]");
+
   return (
-    <div>
-      <div className="flex justify-center">
-        <div className="w-2/3">
-          <h1 className="text-center text-2xl font-bold">Diabetes Predictor</h1>
-          <div className="bg-white border border-black rounded p-4">
-            <form onSubmit={handleSubmit}>
-              {/* Input fields */}
-              {Object.entries(inputData).map(([name, value]) => (
-                <div key={name} className="mb-4">
-                  <input
-                    className="border border-black rounded px-3 py-2 w-full"
-                    type="text"
-                    name={name}
-                    placeholder={`${name}`}
-                    value={value}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              ))}
-              {/* Form error message */}
-              {formError && (
-                <div className="text-red-500 mb-4">{formError}</div>
-              )}
-              {/* Submit button */}
-              <input
-                type="submit"
-                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-                value="Predict"
-              />
-            </form>
+    <div className="max-w-4xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+      <div className="bg-white border border-gray-200 shadow-sm rounded-2xl p-6 sm:p-8">
+        <h1 className="text-center font-bold text-3xl text-headingColor mb-2">
+          Diabetes Risk Predictor
+        </h1>
+        <p className="text-center text-textColor text-sm sm:text-base mb-6">
+          Input metabolic indicators and clinical metrics for diabetic screening.
+        </p>
+
+        <form onSubmit={handleSubmit}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            {Object.entries(inputData).map(([name, value]) => (
+              <div key={name} className="col-span-1">
+                <label className="block text-xs font-semibold text-textColor mb-1">
+                  {name}
+                </label>
+                <input
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm text-headingColor focus:outline-none focus:border-primaryColor"
+                  type="text"
+                  name={name}
+                  placeholder={`Enter value`}
+                  value={value}
+                  onChange={handleInputChange}
+                />
+              </div>
+            ))}
           </div>
-          {/* Prediction result */}
-          {prediction !== null && (
-            <div
-              className={`mt-3 ${
-                prediction.includes("[1]") ? "bg-red-400" : "bg-green-400"
-              } text-2xl`}
-            >
-              <h3 className="text-center">
-                {prediction.includes("[1]")
-                  ? "Sorry! Please consult your doctor."
-                  : "Great! You are HEALTHY."}
-              </h3>
+
+          {formError && (
+            <div className="text-red-600 text-sm font-medium mb-4 text-center">
+              {formError}
             </div>
           )}
-        </div>
+
+          <div className="text-center">
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn w-full sm:w-auto min-w-[200px]"
+            >
+              {loading ? "Evaluating Risk..." : "Predict Diabetes Health"}
+            </button>
+          </div>
+        </form>
+
+        {prediction !== null && (
+          <div className="mt-8">
+            <div
+              className={`rounded-xl p-6 border ${
+                isPositive
+                  ? "bg-red-50 border-red-200 text-red-900"
+                  : "bg-green-50 border-green-200 text-green-900"
+              }`}
+            >
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                <h3 className="text-xl font-bold">
+                  {isPositive
+                    ? "Elevated Diabetes Risk Detected"
+                    : "Normal Glycemic & Metabolic Profile"}
+                </h3>
+                {resultDetails?.confidence && (
+                  <span className={`px-3 py-1 text-xs font-semibold rounded-full ${isPositive ? "bg-red-200 text-red-800" : "bg-green-200 text-green-800"}`}>
+                    AI Confidence: {resultDetails.confidence}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm sm:text-base font-normal">
+                {resultDetails?.details?.clinicalAssessment || (isPositive
+                  ? "Elevated glycemic indicators detected. We recommend consultation with an endocrinologist and a fasting HbA1c test."
+                  : "Metabolic and glucose markers are within healthy standard limits.")}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
-      <DcotorsDropDown
-        testName={"Diabetes Disease Predictor"}
-        testResult={prediction?.includes("[1]") ? "Unhealthy" : "Healthy"}
-      />
+
+      <div className="mt-10">
+        <DoctorsDropDown
+          testName={"Diabetes Disease Predictor"}
+          testResult={isPositive ? "Elevated Risk (Unhealthy)" : "Low Risk (Healthy)"}
+        />
+      </div>
     </div>
   );
 };

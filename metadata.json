@@ -1,0 +1,6 @@
+{
+  "name": "AI-MedLab",
+  "description": "AI-powered healthcare and medical lab platform with disease prediction, symptom checking, and doctor appointments",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

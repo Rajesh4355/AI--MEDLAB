@@ -10,8 +10,9 @@ const useFetchData = (url) => {
     const fetchData = async () => {
       setLoading(true);
       try {
+        const currentToken = localStorage.getItem("token") || token;
         const res = await fetch(url, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${currentToken}` },
         });
         const result = await res.json();
 
