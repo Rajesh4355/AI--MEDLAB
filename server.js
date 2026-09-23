@@ -72,6 +72,22 @@ app.use("/api/v1", contactRoute);
 app.use("/api/v1", forgotPassRoute);
 app.use("/api/v1", healthRoute);
 
+// Database offline error fallback middleware per AI Studio web migration guidelines
+app.use((err, req, res, next) => {
+  if (
+    err.name === "MongooseError" ||
+    err.name === "MongoNetworkError" ||
+    err.message?.includes("buffering timed out")
+  ) {
+    console.warn("[AI Studio] Database offline — returning mock response");
+    if (req.method === "GET") {
+      return res.json(req.path.endsWith("s") || req.path.endsWith("s/") ? [] : {});
+    }
+    return res.status(503).json({ error: "Service temporarily unavailable (database offline)" });
+  }
+  next(err);
+});
+
 // Frontend integration: Vite middleware in development, static build in production
 async function start() {
   const isProduction = process.env.NODE_ENV === "production";

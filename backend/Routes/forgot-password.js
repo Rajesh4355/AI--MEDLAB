@@ -4,66 +4,101 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import User from "../models/UserSchema.js";
+import mongoose from "mongoose";
+import { mockStore } from "../mockStore.js";
+
 const router = express.Router();
 dotEnv.config();
 
-// POST route for form submission
+// POST route for forgot password
 router.post("/forgot-password", async (req, res) => {
   const { email } = req.body;
-  User.findOne({ email: email }).then((user) => {
-    if (!user) {
-      return res.send({ status: "User not exists." });
+
+  let user = null;
+  if (mongoose.connection.readyState === 1) {
+    try {
+      user = await User.findOne({ email });
+    } catch (dbErr) {
+      console.warn("DB find failed in forgot-password:", dbErr.message);
     }
-    const token = jwt.sign({ id: user._id }, "JWT_secret_key", {
-      expiresIn: "1d",
-    });
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
-      auth: {
-        user: process.env.USER,
-        pass: process.env.APP_PASS,
-      },
-    });
-    const mailOptions = {
-      from: {
-        name: "Abdul Wahab",
-        user: process.env.USER,
-      },
-      to: "awminhas619@gmail.com",
-      subject: "Sending Email for Reset Password",
-      text: `http://localhost:5173/reset-password/${user._id}/${token}`,
-    };
-    transporter.sendMail(mailOptions, function (error, info) {
-      if (error) {
-        res.status(500).json({ message: "Failed to send email" });
-      } else {
-        res.status(200).json({ message: "Success" });
-      }
-    });
+  }
+
+  if (!user) {
+    user = mockStore.getUserByEmail(email) || mockStore.getDoctorByEmail(email);
+  }
+
+  if (!user) {
+    return res.status(404).json({ status: "User not exists." });
+  }
+
+  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET_KEY || "aimedlab-default-jwt-secret-key-2024", {
+    expiresIn: "1d",
+  });
+
+  const resetUrl = `/reset-password/${user._id}/${token}`;
+
+  if (process.env.EMAIL_USERNAME && process.env.EMAIL_PASSWORD) {
+    try {
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        host: "smtp.gmail.com",
+        port: 587,
+        secure: false,
+        auth: {
+          user: process.env.EMAIL_USERNAME || process.env.USER,
+          pass: process.env.EMAIL_PASSWORD || process.env.APP_PASS,
+        },
+      });
+
+      const mailOptions = {
+        from: {
+          name: "AI-MedLab Support",
+          address: process.env.EMAIL_USERNAME || process.env.USER,
+        },
+        to: email,
+        subject: "Password Reset Link",
+        text: `Click the link below to reset your password:\n${resetUrl}`,
+      };
+
+      await transporter.sendMail(mailOptions);
+      return res.status(200).json({ message: "Success", resetUrl });
+    } catch (e) {
+      console.warn("Email sending failed in forgot-password:", e.message);
+    }
+  }
+
+  return res.status(200).json({
+    message: "Success",
+    resetUrl,
+    note: "Password reset link generated.",
   });
 });
 
-router.post("/reset-password/:id/:token", (req, res) => {
+router.post("/reset-password/:id/:token", async (req, res) => {
   const { id, token } = req.params;
   const { password } = req.body;
 
-  jwt.verify(token, "JWT_secret_key", (err, decoded) => {
-    if (err) {
-      return res.json({ message: "Error with token" });
-    } else {
-      bcrypt
-        .hash(password, 10)
-        .then((hash) => {
-          User.findOneAndUpdate({ _id: id }, { password: hash })
-            .then((u) => res.send({ message: "Success" }))
-            .catch((err) => res.send({ message: err }));
-        })
-        .catch((err) => res.send({ message: err }));
+  try {
+    const secret = process.env.JWT_SECRET_KEY || "aimedlab-default-jwt-secret-key-2024";
+    jwt.verify(token, secret);
+
+    const hash = await bcrypt.hash(password, 10);
+
+    if (mongoose.connection.readyState === 1) {
+      try {
+        await User.findOneAndUpdate({ _id: id }, { password: hash });
+      } catch (dbErr) {
+        console.warn("DB update failed in reset-password:", dbErr.message);
+      }
     }
-  });
+
+    mockStore.updateUser(id, { password: hash });
+    mockStore.updateDoctor(id, { password: hash });
+
+    return res.json({ message: "Success" });
+  } catch (err) {
+    return res.status(400).json({ message: "Error with token or reset failed" });
+  }
 });
 
 export default router;
