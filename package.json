@@ -1,0 +1,15 @@
+{
+  "name": "ai-medlab-root",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "AI-MedLab-main/frontend",
+    "AI-MedLab-main/backend"
+  ],
+  "scripts": {
+    "dev": "([ -f AI-MedLab-main/frontend/dist/index.html ] || (cd AI-MedLab-main/frontend && ./node_modules/.bin/vite build)) && node AI-MedLab-main/backend/index.js",
+    "build": "cd AI-MedLab-main/frontend && ./node_modules/.bin/vite build",
+    "lint": "cd AI-MedLab-main/frontend && ./node_modules/.bin/eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "start": "node AI-MedLab-main/backend/index.js"
+  }
+}

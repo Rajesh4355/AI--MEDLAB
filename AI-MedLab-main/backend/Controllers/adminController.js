@@ -1,9 +1,18 @@
 import User from "../models/UserSchema.js";
 import Doctor from "../models/DoctorSchema.js";
 import Booking from "../models/BookingSchema.js";
+import { isDbConnected, memoryStore, sanitizeDoc } from "../db/memoryStore.js";
 
 export const getAllUsers = async (req, res) => {
   try {
+    if (!isDbConnected()) {
+      return res.status(200).json({
+        success: true,
+        message: "Users Found",
+        data: memoryStore.users.map(sanitizeDoc),
+      });
+    }
+
     const users = await User.find({}).select("-password");
     res.status(200).json({
       success: true,
@@ -21,10 +30,21 @@ export const getAllUsers = async (req, res) => {
 export const deleteUserById = async (req, res) => {
   try {
     const id = req.params.id;
-    // Log received user ID
-    console.log("Received User ID:", id);
 
-    const deletedUser = await User.findByIdAndDelete(id); // Find and delete user by ID
+    if (!isDbConnected()) {
+      const idx = memoryStore.users.findIndex((u) => u._id === id);
+      if (idx === -1) {
+        return res
+          .status(404)
+          .json({ success: false, message: "User not found" });
+      }
+      memoryStore.users.splice(idx, 1);
+      return res
+        .status(200)
+        .json({ success: true, message: "User deleted successfully" });
+    }
+
+    const deletedUser = await User.findByIdAndDelete(id);
     if (!deletedUser) {
       return res
         .status(404)
@@ -38,13 +58,25 @@ export const deleteUserById = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
+
 export const deleteDoctorById = async (req, res) => {
   try {
     const id = req.params.id;
-    // Log received user ID
-    console.log("Received User ID:", id);
 
-    const deletedUser = await Doctor.findByIdAndDelete(id); // Find and delete user by ID
+    if (!isDbConnected()) {
+      const idx = memoryStore.doctors.findIndex((d) => d._id === id);
+      if (idx === -1) {
+        return res
+          .status(404)
+          .json({ success: false, message: "User not found" });
+      }
+      memoryStore.doctors.splice(idx, 1);
+      return res
+        .status(200)
+        .json({ success: true, message: "User deleted successfully" });
+    }
+
+    const deletedUser = await Doctor.findByIdAndDelete(id);
     if (!deletedUser) {
       return res
         .status(404)
@@ -61,6 +93,14 @@ export const deleteDoctorById = async (req, res) => {
 
 export const getAllDoctors = async (req, res) => {
   try {
+    if (!isDbConnected()) {
+      return res.status(200).json({
+        success: true,
+        message: "Doctors Found",
+        data: memoryStore.doctors.map(sanitizeDoc),
+      });
+    }
+
     const doctors = await Doctor.find({}).select("-password");
     res.status(200).json({
       success: true,
@@ -74,8 +114,18 @@ export const getAllDoctors = async (req, res) => {
     });
   }
 };
+
 export const getAllBookings = async (req, res) => {
   try {
+    if (!isDbConnected()) {
+      return res.status(200).json({
+        counts: memoryStore.bookings.length,
+        success: true,
+        message: "Bookings Found",
+        data: memoryStore.bookings,
+      });
+    }
+
     const bookings = await Booking.find({});
 
     res.status(200).json({
@@ -101,6 +151,20 @@ export const updateDoctorApprovalStatus = async (req, res) => {
   }
 
   try {
+    if (!isDbConnected()) {
+      const doctor = memoryStore.doctors.find((d) => d._id === id);
+      if (!doctor) {
+        return res.status(404).json({ message: "Doctor not found" });
+      }
+      doctor.isApproved = isApproved;
+      return res
+        .status(200)
+        .json({
+          message: "Approval status updated successfully",
+          doctor: sanitizeDoc(doctor),
+        });
+    }
+
     const doctor = await Doctor.findById(id);
     if (!doctor) {
       return res.status(404).json({ message: "Doctor not found" });

@@ -1,47 +1,49 @@
-// Import necessary modules
 import jwt from "jsonwebtoken";
 import Doctor from "../models/DoctorSchema.js";
 import User from "../models/UserSchema.js";
+import { isDbConnected, memoryStore } from "../db/memoryStore.js";
+
+const getJwtSecret = () => process.env.JWT_SECRET_KEY || "ai_medlab_dev_secret";
 
 export const authenticate = async (req, res, next) => {
-  // Get token from headers
   const authToken = req.headers.authorization;
-  // console.log("authToken", authToken);
 
-  // Check if token exists
-  if (!authToken || !authToken.startsWith("Bearer")) {
+  if (!authToken || !authToken.startsWith("Bearer ")) {
     return res
       .status(401)
       .json({ success: false, message: "No token, authorization denied" });
   }
 
   try {
-    // Extract token string and decode it
     const token = authToken.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+    if (!token || token === "null" || token === "undefined") {
+      return res
+        .status(401)
+        .json({ success: false, message: "No token, authorization denied" });
+    }
 
-    // Attach decoded user information to the request object
+    const decoded = jwt.verify(token, getJwtSecret());
+
     req.userId = decoded.id;
     req.role = decoded.role;
-    // Check token expiration
     if (decoded.exp < Date.now() / 1000) {
       return res.status(401).json({ message: "Token is expired" });
     }
 
-    // Check if the user is a doctor and attach doctorId to the request object
     if (req.role === "doctor") {
-      const doctor = await Doctor.findById(req.userId);
+      const doctor = isDbConnected()
+        ? await Doctor.findById(req.userId)
+        : memoryStore.doctors.find((d) => d._id === req.userId);
       if (!doctor) {
         return res
           .status(404)
           .json({ success: false, message: "Doctor not found" });
       }
-      req.doctorId = doctor._id; // Attach doctorId to the request object
+      req.doctorId = doctor._id;
     }
 
-    next(); // Call next middleware
+    next();
   } catch (error) {
-    // Handle token verification errors
     return res.status(401).json({ success: false, message: "Invalid token" });
   }
 };
@@ -52,14 +54,15 @@ export const restrict = (roles) => async (req, res, next) => {
   try {
     let user;
 
-    const patient = await User.findById(userId);
-    const doctor = await Doctor.findById(userId);
-
-    if (patient) {
-      user = patient;
-    }
-    if (doctor) {
-      user = doctor;
+    if (isDbConnected()) {
+      const patient = await User.findById(userId);
+      const doctor = await Doctor.findById(userId);
+      if (patient) user = patient;
+      if (doctor) user = doctor;
+    } else {
+      user =
+        memoryStore.users.find((u) => u._id === userId) ||
+        memoryStore.doctors.find((d) => d._id === userId);
     }
 
     if (!user || !roles.includes(user.role)) {

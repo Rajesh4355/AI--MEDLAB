@@ -1,17 +1,33 @@
 import User from "../models/UserSchema.js";
 import Booking from "../models/BookingSchema.js";
 import Doctor from "../models/DoctorSchema.js";
-import mongoose from "mongoose";
+import { isDbConnected, memoryStore, sanitizeDoc } from "../db/memoryStore.js";
 
 export const updateUser = async (req, res) => {
   const id = req.params.id;
   try {
-    const updateUser = await User.findByIdAndUpdate(
+    if (!isDbConnected()) {
+      const idx = memoryStore.users.findIndex((u) => u._id === id);
+      if (idx === -1) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+      memoryStore.users[idx] = { ...memoryStore.users[idx], ...req.body };
+      return res.status(200).json({
+        success: true,
+        message: "Successfully updated",
+        data: sanitizeDoc(memoryStore.users[idx]),
+      });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
       id,
       { $set: req.body },
       { new: true }
     );
-    if (!updateUser) {
+    if (!updatedUser) {
       return res.status(404).json({
         success: false,
         message: "User not found",
@@ -20,14 +36,14 @@ export const updateUser = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Successfully updated",
-      data: updateUser,
+      data: updatedUser,
     });
   } catch (error) {
     console.error("Error updating user:", error);
     res.status(500).json({
       success: false,
       message: "Failed to update",
-      error: error.message, // Include error message in the response
+      error: error.message,
     });
   }
 };
@@ -35,11 +51,19 @@ export const updateUser = async (req, res) => {
 export const deleteUser = async (req, res) => {
   const id = req.params.id;
   try {
-    await User.findById(id);
+    if (!isDbConnected()) {
+      const idx = memoryStore.users.findIndex((u) => u._id === id);
+      if (idx !== -1) memoryStore.users.splice(idx, 1);
+      return res.status(200).json({
+        success: true,
+        message: "Successfully deleted",
+      });
+    }
+
+    await User.findByIdAndDelete(id);
     res.status(200).json({
       success: true,
       message: "Successfully deleted",
-      data: deleteUser,
     });
   } catch (error) {
     res.status(500).json({
@@ -52,6 +76,21 @@ export const deleteUser = async (req, res) => {
 export const getSingleUser = async (req, res) => {
   const id = req.params.id;
   try {
+    if (!isDbConnected()) {
+      const user = memoryStore.users.find((u) => u._id === id);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "Failed to find user",
+        });
+      }
+      return res.status(200).json({
+        success: true,
+        message: "User Found",
+        data: sanitizeDoc(user),
+      });
+    }
+
     const user = await User.findById(id).select("-password");
     res.status(200).json({
       success: true,
@@ -67,8 +106,15 @@ export const getSingleUser = async (req, res) => {
 };
 
 export const getAllUsers = async (req, res) => {
-  const id = req.params.id;
   try {
+    if (!isDbConnected()) {
+      return res.status(200).json({
+        success: true,
+        message: "Users Found",
+        data: memoryStore.users.map(sanitizeDoc),
+      });
+    }
+
     const users = await User.find({}).select("-password");
     res.status(200).json({
       success: true,
@@ -87,6 +133,20 @@ export const getUserProfile = async (req, res) => {
   const userId = req.userId;
 
   try {
+    if (!isDbConnected()) {
+      const user = memoryStore.users.find((u) => u._id === userId);
+      if (!user) {
+        return res
+          .status(404)
+          .json({ success: false, message: "User not found" });
+      }
+      return res.status(200).json({
+        success: true,
+        message: "Profile info is getting",
+        data: sanitizeDoc(user),
+      });
+    }
+
     const user = await User.findById(userId);
 
     if (!user) {
@@ -112,11 +172,23 @@ export const getUserProfile = async (req, res) => {
 
 export const getMyAppointments = async (req, res) => {
   try {
-    // step - 1 : retrieve appointments from booking specific user
+    if (!isDbConnected()) {
+      const bookings = memoryStore.bookings.filter(
+        (b) => b.user?._id === req.userId || b.user === req.userId
+      );
+      const doctorIds = bookings.map((el) => el.doctor?._id || el.doctor);
+      const doctors = memoryStore.doctors
+        .filter((d) => doctorIds.includes(d._id))
+        .map(sanitizeDoc);
+      return res.status(200).json({
+        success: true,
+        message: "Appointments are getting",
+        data: doctors,
+      });
+    }
+
     const bookings = await Booking.find({ user: req.userId });
-    // step - 2 : extract doctor ids from appointments bookings
     const doctorIds = bookings.map((el) => el.doctor.id);
-    // step - 3 : retrieve doctors using doctor ids
     const doctors = await Doctor.find({ _id: { $in: doctorIds } }).select(
       "-password"
     );
@@ -140,6 +212,31 @@ export const createAppointment = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Doctor ID is required",
+      });
+    }
+
+    if (!isDbConnected()) {
+      const doctor = memoryStore.doctors.find((d) => d._id === doctorId);
+      if (!doctor) {
+        return res.status(400).json({
+          success: false,
+          message: "This Doctor is not available now",
+        });
+      }
+      const appointment = {
+        patientName: appointmentData.patientName,
+        patientGender: appointmentData.patientGender,
+        payment: appointmentData.payment,
+        price: appointmentData.price,
+        bookedOn: appointmentData.bookedOn,
+        testName: appointmentData.testName,
+        testResult: appointmentData.testResult,
+      };
+      doctor.appointments.push(appointment);
+      return res.status(200).json({
+        success: true,
+        data: sanitizeDoc(doctor),
+        message: "Appoint booking done",
       });
     }
 

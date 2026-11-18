@@ -17,15 +17,19 @@ function DoctorsDropDown({ testName, testResult = null }) {
   };
 
   const bookAppointment = async () => {
-    console.log({ testResult });
+    if (!loginUser || !token || token === "null") {
+      toast.error("Please login first to book an appointment");
+      return;
+    }
     const payload = {
       doctorId: selectedDoctor,
-      testName: testName.testName,
-      testResult: testResult.testResult,
+      testName: typeof testName === "string" ? testName : testName?.testName,
+      testResult:
+        typeof testResult === "string" ? testResult : testResult?.testResult,
       payment: "Pending",
       price: "100",
-      patientGender: loginUser.gender,
-      patientName: loginUser.name,
+      patientGender: loginUser?.gender || "other",
+      patientName: loginUser?.name || "Patient",
       bookedOn: `${new Date()}`,
     };
 

@@ -7,6 +7,7 @@ const PneumoniaDiseaseTest = () => {
   const [imagePreview, setImagePreview] = useState("");
   const [selectedImage, setSelectedImage] = useState(null);
   const [prediction, setPrediction] = useState(null);
+  const [formError, setFormError] = useState("");
 
   const handleImagePreview = (event) => {
     if (event.target.files && event.target.files[0]) {
@@ -15,6 +16,7 @@ const PneumoniaDiseaseTest = () => {
       reader.onload = function (e) {
         setImagePreview(e.target.result);
         setSelectedImage(event.target.files[0]);
+        setFormError("");
       };
 
       reader.readAsDataURL(event.target.files[0]);
@@ -93,6 +95,7 @@ const PneumoniaDiseaseTest = () => {
               Predict
             </button>
           </div>
+          {formError && <p className="text-red-500 text-center mt-2">{formError}</p>}
         </form>
         {prediction !== null && (
           <div className="mt-3">

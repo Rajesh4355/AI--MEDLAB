@@ -5,34 +5,43 @@ import express from "express";
 const router = express.Router();
 dotEnv.config();
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false, // Use `true` for port 465, `false` for all other ports
-  auth: {
-    user: process.env.USER,
-    pass: process.env.APP_PASS,
-  },
-});
-
-// POST route for form submission
 router.post("/contact", async (req, res) => {
   const { email, subject, message } = req.body;
+  const smtpUser = process.env.EMAIL_USER || process.env.USER;
+  const smtpPass = process.env.EMAIL_PASS || process.env.APP_PASS;
+
+  if (!smtpUser || !smtpPass) {
+    console.warn("SMTP credentials not configured — logging contact message:", {
+      email,
+      subject,
+    });
+    return res
+      .status(200)
+      .json({ message: "Message received (demo mode — SMTP not configured)" });
+  }
 
   try {
-    // Send email using the transporter
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
+      },
+    });
+
     let info = await transporter.sendMail({
       from: {
-        name: "Abdul Wahab",
-        address: process.env.USER,
+        name: "AI-MedLab",
+        address: smtpUser,
       },
-      to: "awminhas619@gmail.com",
+      to: smtpUser,
       subject: subject,
       text: `Email: ${email}\n\nMessage: ${message}`,
     });
 
-    // Send response with email info and success message
     res.status(200).json({ info, message: "Email sent successfully" });
   } catch (error) {
     console.error("Error sending email:", error);

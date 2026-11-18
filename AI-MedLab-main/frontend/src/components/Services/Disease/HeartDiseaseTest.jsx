@@ -20,7 +20,7 @@ const HeartDiseaseTest = () => {
     "Number of Major Vessels (0-3) Colored by Flourosopy": "",
     "3 = Normal; 6 = Fixed Defect; 7 = Reversable Defect": "",
   });
-  const [prediction, setPrediction] = useState("[0]");
+  const [prediction, setPrediction] = useState(null);
   const [formError, setFormError] = useState("");
 
   const handleInputChange = (e) => {
@@ -43,7 +43,7 @@ const HeartDiseaseTest = () => {
       const response = await axios.post(`${BASE_URL}/heart`, {
         data: inputData,
       });
-      // setPrediction(response.data.prediction = '1');
+      setPrediction(response.data.prediction);
     } catch (error) {
       console.error("Error:", error);
     }
