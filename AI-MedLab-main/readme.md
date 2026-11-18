@@ -95,10 +95,7 @@ The project is structured into two main directories:
 - Access the application at `http://localhost:5173`.
 - Use the frontend interface to interact with the different modules (Customer, Doctor, Lab Assistant).
 
-## Contributors
 
-- **[Abdul Wahab](https://github.com/abdul-wahab619)** - Full Stack Developer
-- **[Nafeesa Shehzadi](https://github.com/nafeesa-shehzadi)** - Frontend Developer
 
 ## Collaboration
 
@@ -116,6 +113,3 @@ For major changes, please open an issue first to discuss what you would like to 
 Feel free to reach out to us with any questions or suggestions. Let's collaborate to extend the exposure and impact of this project!
 
 
-## License
-
-This project is licensed under the [MIT License](https://github.com/abdul-wahab619/AI-MedLab/blob/main/LICENSE).
